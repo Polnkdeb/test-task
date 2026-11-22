@@ -92,56 +92,53 @@ def get_abccustomer_by_amocustomer_login(customer_login: str) -> Optional[Abstra
 
     return customers[0]
 
+def create_or_update_customer(abstract_customer, amo_customer):
+    """Создаёт или обновляет покупателя по CRM ID."""
 
-def create_or_update_customer(abstract_customer: Optional[AbstractCustomer], amo_customer: Customer):
+    customer_data = get_customer_json(amo_customer)
+
     if abstract_customer is None:
-        new_abstract_customer = AbstractCustomer(
-            amo_customers=[get_customer_json(amo_customer)],
+        abstract_customer = AbstractCustomer(
+            amo_customers=[customer_data]
         )
-        db.session.add(new_abstract_customer)
-        return new_abstract_customer
-
-    abc_amo_customers = abstract_customer.amo_customers
-    if not abc_amo_customers:
-        # Не было покупателей
-        abstract_customer.amo_customers = [get_customer_json(amo_customer)]
+        db.session.add(abstract_customer)
         return abstract_customer
 
-    index = [idx for idx, c in enumerate(abstract_customer.amo_customers) if c['general']['id'] == amo_customer.id]
-    if not index:
-        index = len(abstract_customer.amo_customers) + 1
-    else:
-        index = index[0]
+    customers = list(abstract_customer.amo_customers or [])
 
-    update_jsonb_field(entity_id=abstract_customer.id,
-                       attribute=AbcCustomerEntities.AmoCustomer,
-                       index=index,
-                       new_value=get_customer_json(amo_customer))
+    for i, customer in enumerate(customers):
+        if customer["general"]["id"] == amo_customer.id:
+            customers[i] = customer_data
+            break
+    else:
+        customers.append(customer_data)
+
+    abstract_customer.amo_customers = customers
+
     return abstract_customer
 
+def create_or_update_lead(abc_customer, amo_lead):
+    """Создаёт или обновляет сделку по CRM ID."""
 
-def create_or_update_lead(abc_customer: Optional[AbstractCustomer], amo_lead: Lead) -> AbstractCustomer:
+    lead_data = get_lead_json(amo_lead)
+
     if abc_customer is None:
-        new_abstract_customer = AbstractCustomer(
-            amo_leads=[get_lead_json(amo_lead)])
-        db.session.add(new_abstract_customer)
-        db.session.commit()
-        return new_abstract_customer
-
-    if not abc_customer.amo_leads:
-        abc_customer.amo_leads = [get_lead_json(amo_lead)]
-        db.session.commit()
+        abc_customer = AbstractCustomer(
+            amo_leads=[lead_data]
+        )
+        db.session.add(abc_customer)
         return abc_customer
 
-    index = [idx for idx, c in enumerate(abc_customer.amo_leads) if c['general']['id'] == amo_lead.id]
-    if not index:
-        index = len(abc_customer.amo_leads) + 1
-    else:
-        index = index[0]
+    leads = list(abc_customer.amo_leads or [])
 
-    update_jsonb_field(entity_id=abc_customer.id,
-                       attribute=AbcCustomerEntities.AmoLead,
-                       index=index,
-                       new_value=get_lead_json(amo_lead))
-    db.session.commit()
+    for i, lead in enumerate(leads):
+        if lead["general"]["id"] == amo_lead.id:
+            leads[i] = lead_data
+            break
+    else:
+        leads.append(lead_data)
+
+    abc_customer.amo_leads = leads
+
     return abc_customer
+
